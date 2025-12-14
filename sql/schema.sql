@@ -102,7 +102,7 @@ ALTER TABLE `log` ADD FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`);
 -- Sample Data (Optional)
 -- Insert admin user (password: admin123)
 INSERT INTO `user` (`name`, `address`, `phone`, `email`, `login`, `password`, `role`) VALUES
-('Administrador', 'Admin Address', '123456789', 'admin@restaurant.com', 'admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin');
+('Administrador', 'Admin Address', '123456789', 'admin@restaurant.com', 'admin', '$2y$12$MvXep20EIgl7p5I5xOLC9etxHz74QVMj89TYiOR4UZ8WX6/8KdyIS', 'admin');
 
 -- Insert sample categories
 INSERT INTO `category` (`nombre`, `image`, `order`, `status`) VALUES

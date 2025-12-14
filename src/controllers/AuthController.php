@@ -8,7 +8,6 @@ class AuthController extends BaseController {
         if ($this->isLoggedIn()) {
             $this->redirect('/restaurant/public/account');
         }
-        
         $error = null;
         
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {

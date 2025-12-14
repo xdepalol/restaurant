@@ -5,16 +5,12 @@
 class BaseController {
     protected function render($view, $data = []) {
         extract($data);
-        require VIEWS_PATH . '/layouts/header.php';
-        require VIEWS_PATH . '/' . $view . '.php';
-        require VIEWS_PATH . '/layouts/footer.php';
+        require VIEWS_PATH . '/layouts/main.php';
     }
     
     protected function renderAdmin($view, $data = []) {
         extract($data);
-        require VIEWS_PATH . '/layouts/admin_header.php';
-        require VIEWS_PATH . '/admin/' . $view . '.php';
-        require VIEWS_PATH . '/layouts/admin_footer.php';
+        require VIEWS_PATH . '/layouts/admin_main.php';
     }
     
     protected function redirect($url) {
