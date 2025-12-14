@@ -9,7 +9,7 @@ define('VIEWS_PATH', SRC_PATH . '/views');
 define('API_PATH', PUBLIC_PATH . '/api');
 
 // API Configuration
-define('API_TOKEN_SECRET', 'your-secret-key-change-in-production'); // Change this in production!
+define('API_TOKEN_SECRET', 'hP2BCzu3t+J+jcQD8uSxyb22B@lCbX#^TCz%d5Xe@T^='); // Change this in production!
 define('API_TOKEN_EXPIRY', 3600); // 1 hour
 
 // Application Settings

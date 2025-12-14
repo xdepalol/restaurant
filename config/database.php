@@ -8,8 +8,8 @@ class Database {
     
     private $host = 'localhost';
     private $dbname = 'restaurant_db';
-    private $username = 'root';
-    private $password = '';
+    private $username = 'restouser';
+    private $password = 'fjq2ElLyOvqMvQdF';
     private $charset = 'utf8mb4';
     
     private function __construct() {
