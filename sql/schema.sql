@@ -1,6 +1,11 @@
 -- Restaurant Database Schema
 -- MariaDB/MySQL
 
+CREATE DATABASE restaurant_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'restouser'@'localhost' IDENTIFIED BY 'fjq2ElLyOvqMvQdF';
+GRANT ALL PRIVILEGES ON restaurant_db.* TO 'restouser'@'localhost';
+FLUSH PRIVILEGES;
+
 CREATE DATABASE IF NOT EXISTS restaurant_db;
 USE restaurant_db;
 

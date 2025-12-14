@@ -8,9 +8,12 @@
     <link rel="stylesheet" href="/restaurant/public/assets/css/style.css">
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <nav class="navbar navbar-expand-lg navbar-dark fixed-top bg-dark">
         <div class="container">
-            <a class="navbar-brand" href="/restaurant/public/home"><?php echo APP_NAME; ?></a>
+            <a class="navbar-brand" href="#">
+            <img src="/restaurant/public/assets/brand/restaurant.png" alt="<?= APP_NAME ?>" width="30" height="24">
+            </a>
+            <!-- <a class="navbar-brand" href="/restaurant/public/home"><?php echo APP_NAME; ?></a> -->
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
