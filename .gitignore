@@ -1,0 +1,33 @@
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env
+.env.local
+
+# Dependencies (if using composer)
+vendor/
+
+# Generated documentation
+docs/
+
+# Temporary files
+tmp/
+temp/
+
+# Database backups
+*.sql.bak
+*.sql.gz
+

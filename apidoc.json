@@ -1,0 +1,8 @@
+{
+  "name": "Restaurant Management API",
+  "version": "1.0.0",
+  "description": "API REST para el sistema de gestión de restaurante",
+  "title": "Restaurant API Documentation",
+  "url": "http://localhost/restaurant/public/api"
+}
+
