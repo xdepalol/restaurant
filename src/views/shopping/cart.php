@@ -10,3 +10,4 @@
     <a href="/restaurant/public/checkout" class="btn btn-primary" id="checkout-btn" style="display:none;">Proceder al Checkout</a>
 </div>
 
+

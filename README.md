@@ -196,3 +196,4 @@ Este proyecto es para fines educativos.
 
 Proyecto educativo para demostración de arquitectura MVC y API REST en PHP.
 
+

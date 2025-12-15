@@ -123,3 +123,4 @@ INSERT INTO `product` (`nombre`, `image`, `category_id`, `price`, `status`, `ord
 INSERT INTO `promotion` (`promo_code`, `discount`, `description`, `status`) VALUES
 ('WELCOME10', 10, 'Descuento de bienvenida del 10%', 1);
 
+

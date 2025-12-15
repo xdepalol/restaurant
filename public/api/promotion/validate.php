@@ -33,3 +33,4 @@ if (!$result['valid']) {
 
 Response::success($result['promotion'], 'Promotion code is valid');
 
+
