@@ -8,12 +8,14 @@
  * @apiSuccess {String} data.token Token de autenticación
  * @apiError (401) Unauthorized Usuario no autenticado
  */
-require_once dirname(__DIR__, 2) . '/config/config.php';
+require_once dirname(__DIR__, 3) . '/config/config.php';
 require_once BASE_PATH . '/src/utils/Response.php';
 require_once BASE_PATH . '/src/middleware/AuthMiddleware.php';
 require_once BASE_PATH . '/src/models/UserModel.php';
 
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 if (!isset($_SESSION['user_id'])) {
     Response::unauthorized('User not authenticated');

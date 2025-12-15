@@ -1,7 +1,7 @@
     <nav class="navbar fixed-top navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
             <a class="navbar-brand" href="#">
-            <img src="/restaurant/public/assets/brand/restaurant-logo.png" title="<?= APP_NAME ?>" width="30" height="24">
+            <img src="/restaurant/public/assets/brand/restaurant-logo.png" title="<?= APP_NAME ?>" width="40" height="24">
             </a>
             <!-- <a class="navbar-brand" href="/restaurant/public/home"><?php echo APP_NAME; ?></a> -->
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">

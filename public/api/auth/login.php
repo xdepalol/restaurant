@@ -11,7 +11,7 @@
  * @apiError (400) BadRequest Credenciales inválidas
  * @apiError (401) Unauthorized Email o contraseña incorrectos
  */
-require_once dirname(__DIR__, 2) . '/config/config.php';
+require_once dirname(__DIR__, 3) . '/config/config.php';
 require_once BASE_PATH . '/src/utils/Response.php';
 require_once BASE_PATH . '/src/utils/Validator.php';
 require_once BASE_PATH . '/src/middleware/AuthMiddleware.php';
