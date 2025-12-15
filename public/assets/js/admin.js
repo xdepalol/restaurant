@@ -59,6 +59,44 @@ async function apiCall(endpoint, method = 'GET', data = null) {
     return await response.json();
 }
 
+// Generic table elements
+function createCell(content, className = '') {
+    const td = document.createElement('td');
+
+    // Permet text, números o nodes DOM
+    if (content instanceof Node) {
+        td.appendChild(content);
+    } else {
+        td.textContent = content ?? '';
+    }
+
+    if (className) {
+        td.className = className;
+    }
+
+    return td;
+}
+
+// actions: [{ label, className, action }]
+function createActionsCell(actions, entityId) {
+  const td = document.createElement('td');
+
+  actions.forEach(({ label, className, action }) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = className;
+    btn.textContent = label;
+
+    // data-* per delegació
+    btn.dataset.action = action;
+    btn.dataset.id = String(entityId);
+
+    td.appendChild(btn);
+  });
+
+  return td;
+}
+
 // Users Management
 async function loadUsers() {
     const data = await apiCall('/user/');
@@ -70,25 +108,72 @@ async function loadUsers() {
 }
 
 function renderUsers(users) {
-    let html = '<table class="table table-striped"><thead><tr><th>ID</th><th>Nombre</th><th>Email</th><th>Rol</th><th>Acciones</th></tr></thead><tbody>';
-    
-    users.forEach(user => {
-        html += `
-            <tr>
-                <td>${user.user_id}</td>
-                <td>${user.name}</td>
-                <td>${user.email}</td>
-                <td>${user.role}</td>
-                <td>
-                    <button class="btn btn-sm btn-info" onclick="editUser(${user.user_id})">Editar</button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteUser(${user.user_id})">Eliminar</button>
-                </td>
-            </tr>
-        `;
+  const container = document.getElementById('users-content');
+  container.innerHTML = '';
+
+  const table = document.createElement('table');
+  table.className = 'table table-striped';
+  table.id = 'users-table'; // útil per delegació
+
+  // THEAD
+  const thead = document.createElement('thead');
+  const headerRow = document.createElement('tr');
+  ['ID', 'Nombre', 'Email', 'Rol', 'Acciones'].forEach(text => {
+    const th = document.createElement('th');
+    th.textContent = text;
+    headerRow.appendChild(th);
+  });
+  thead.appendChild(headerRow);
+  table.appendChild(thead);
+
+  // TBODY
+  const tbody = document.createElement('tbody');
+
+  users.forEach(user => {
+    const tr = document.createElement('tr');
+
+    tr.appendChild(createCell(user.user_id));
+    tr.appendChild(createCell(user.name));
+    tr.appendChild(createCell(user.email));
+    tr.appendChild(createCell(user.role, 'text-uppercase'));
+
+    tr.appendChild(
+      createActionsCell(
+        [
+          { label: 'Editar',  className: 'btn btn-sm btn-info me-2', action: 'edit-user' },
+          { label: 'Eliminar', className: 'btn btn-sm btn-danger',   action: 'delete-user' }
+        ],
+        user.user_id
+      )
+    );
+
+    tbody.appendChild(tr);
+  });
+
+  table.appendChild(tbody);
+  container.appendChild(table);
+
+  // Delegació (evita duplicar listeners si tornes a renderitzar)
+  if (!container.dataset.bound) {
+    container.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-action][data-id]');
+      if (!btn || !container.contains(btn)) return;
+
+      const { action, id } = btn.dataset;
+      const userId = Number(id);
+
+      switch (action) {
+        case 'edit-user':
+          editUser(userId);
+          break;
+        case 'delete-user':
+          deleteUser(userId);
+          break;
+      }
     });
-    
-    html += '</tbody></table>';
-    document.getElementById('users-content').innerHTML = html;
+
+    container.dataset.bound = '1';
+  }
 }
 
 // Orders Management
