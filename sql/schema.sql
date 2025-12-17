@@ -124,3 +124,4 @@ INSERT INTO `promotion` (`promo_code`, `discount`, `description`, `status`) VALU
 ('WELCOME10', 10, 'Descuento de bienvenida del 10%', 1);
 
 
+

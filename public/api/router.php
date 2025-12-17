@@ -25,7 +25,8 @@ $routes = [
     'helloworld' => 'helloworld.php',
     'auth/login' => 'auth/login.php',
     'auth/token' => 'auth/token.php',
-    'promotion/validate' => 'promotion/validate.php'
+    'promotion/validate' => 'promotion/validate.php',
+    'cart/verify' => 'cart/verify.php'
 ];
 
 // Check if it's a direct route

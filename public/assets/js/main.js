@@ -1,137 +1,17 @@
-// Shopping Cart Management using localStorage
-class ShoppingCart {
-    constructor() {
-        this.cart = this.loadCart();
-        this.updateCartCount();
-    }
-    
-    loadCart() {
-        const cart = localStorage.getItem('shoppingCart');
-        return cart ? JSON.parse(cart) : [];
-    }
-    
-    saveCart() {
-        localStorage.setItem('shoppingCart', JSON.stringify(this.cart));
-        this.updateCartCount();
-    }
-    
-    addItem(productId, productName, productPrice, quantity = 1) {
-        const existingItem = this.cart.find(item => item.product_id === productId);
-        
-        if (existingItem) {
-            existingItem.quantity += quantity;
-        } else {
-            this.cart.push({
-                product_id: productId,
-                product_name: productName,
-                price: productPrice,
-                quantity: quantity
-            });
-        }
-        
-        this.saveCart();
-        this.showCartNotification();
-    }
-    
-    removeItem(productId) {
-        this.cart = this.cart.filter(item => item.product_id !== productId);
-        this.saveCart();
-        if (document.getElementById('cart-content')) {
-            this.renderCart();
-        }
-    }
-    
-    updateQuantity(productId, quantity) {
-        const item = this.cart.find(item => item.product_id === productId);
-        if (item) {
-            if (quantity <= 0) {
-                this.removeItem(productId);
-            } else {
-                item.quantity = quantity;
-                this.saveCart();
-                if (document.getElementById('cart-content')) {
-                    this.renderCart();
-                }
-            }
-        }
-    }
-    
-    clearCart() {
-        this.cart = [];
-        this.saveCart();
-    }
-    
-    getTotal() {
-        return this.cart.reduce((total, item) => total + (item.price * item.quantity), 0);
-    }
-    
-    updateCartCount() {
-        const count = this.cart.reduce((sum, item) => sum + item.quantity, 0);
-        const cartCountEl = document.getElementById('cart-count');
-        if (cartCountEl) {
-            cartCountEl.textContent = count;
-        }
-    }
-    
-    renderCart() {
-        const cartContent = document.getElementById('cart-content');
-        if (!cartContent) return;
-        
-        if (this.cart.length === 0) {
-            cartContent.innerHTML = '<p>Tu carrito está vacío.</p>';
-            document.getElementById('checkout-btn').style.display = 'none';
-            return;
-        }
-        
-        let html = '<table class="table"><thead><tr><th>Producto</th><th>Precio</th><th>Cantidad</th><th>Total</th><th>Acciones</th></tr></thead><tbody>';
-        
-        this.cart.forEach(item => {
-            const itemTotal = item.price * item.quantity;
-            html += `
-                <tr>
-                    <td>${item.product_name}</td>
-                    <td>$${item.price.toFixed(2)}</td>
-                    <td>
-                        <input type="number" class="form-control form-control-sm d-inline-block w-auto" 
-                               value="${item.quantity}" min="1" 
-                               onchange="cart.updateQuantity(${item.product_id}, parseInt(this.value))">
-                    </td>
-                    <td>$${itemTotal.toFixed(2)}</td>
-                    <td>
-                        <button class="btn btn-sm btn-danger" onclick="cart.removeItem(${item.product_id})">Eliminar</button>
-                    </td>
-                </tr>
-            `;
-        });
-        
-        html += `</tbody><tfoot><tr><th colspan="3">Total</th><th>$${this.getTotal().toFixed(2)}</th><th></th></tr></tfoot></table>`;
-        
-        cartContent.innerHTML = html;
-        document.getElementById('checkout-btn').style.display = 'block';
-    }
-    
-    showCartNotification() {
-        // Simple notification
-        const notification = document.createElement('div');
-        notification.className = 'alert alert-success position-fixed top-0 end-0 m-3';
-        notification.style.zIndex = '9999';
-        notification.textContent = 'Producto agregado al carrito';
-        document.body.appendChild(notification);
-        
-        setTimeout(() => {
-            notification.remove();
-        }, 3000);
-    }
-}
+/**
+ * Main JavaScript
+ * Entry point for public-facing pages
+ */
 
-// Initialize cart
-const cart = new ShoppingCart();
+import { cart } from './shopping/cart.js';
+import { apiCall } from './utils/api.js';
+import { createLoadingSpinner, createErrorMessage, addRow, formatMoney } from './utils/dom-helpers.js';
 
-// Add to cart buttons
+// Initialize on DOM ready
 document.addEventListener('DOMContentLoaded', function() {
     // Render cart if on cart page
     if (document.getElementById('cart-content')) {
-        cart.renderCart();
+        cart.verifyAndRenderCart();
     }
     
     // Add to cart functionality
@@ -161,104 +41,163 @@ document.addEventListener('DOMContentLoaded', function() {
     // Validate promo code
     const validatePromoBtn = document.getElementById('validate-promo');
     if (validatePromoBtn) {
-        validatePromoBtn.addEventListener('click', function() {
+        validatePromoBtn.addEventListener('click', async function() {
             const promoCode = document.getElementById('promo_code').value;
+            const messageEl = document.getElementById('promo-message');
+            
             if (!promoCode) {
-                document.getElementById('promo-message').innerHTML = '<span class="text-danger">Ingresa un código</span>';
+                messageEl.innerHTML = '';
+                const errorSpan = document.createElement('span');
+                errorSpan.className = 'text-danger';
+                errorSpan.textContent = 'Ingresa un código';
+                messageEl.appendChild(errorSpan);
                 return;
             }
             
-            fetch('/restaurant/public/api/promotion/validate', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ promo_code: promoCode })
-            })
-            .then(response => response.json())
-            .then(data => {
-                const messageEl = document.getElementById('promo-message');
+            try {
+                const data = await apiCall('/promotion/validate', 'POST', { promo_code: promoCode }, false);
+                
+                messageEl.innerHTML = '';
                 if (data.success) {
-                    messageEl.innerHTML = '<span class="text-success">Código válido: ' + data.data.discount + '% de descuento</span>';
+                    const successSpan = document.createElement('span');
+                    successSpan.className = 'text-success';
+                    successSpan.textContent = `Código válido: ${data.data.discount}% de descuento`;
+                    messageEl.appendChild(successSpan);
                     renderOrderSummary(promoCode);
                 } else {
-                    messageEl.innerHTML = '<span class="text-danger">' + data.message + '</span>';
+                    const errorSpan = document.createElement('span');
+                    errorSpan.className = 'text-danger';
+                    errorSpan.textContent = data.message;
+                    messageEl.appendChild(errorSpan);
                 }
-            })
-            .catch(error => {
-                document.getElementById('promo-message').innerHTML = '<span class="text-danger">Error al validar código</span>';
-            });
+            } catch (error) {
+                messageEl.innerHTML = '';
+                const errorSpan = document.createElement('span');
+                errorSpan.className = 'text-danger';
+                errorSpan.textContent = 'Error al validar código';
+                messageEl.appendChild(errorSpan);
+            }
         });
     }
+    
+    // Order details modal
+    setupOrderDetailsModal();
 });
 
+/**
+ * Render order summary using DOM
+ */
 function renderOrderSummary(promoCode = '') {
     const summaryEl = document.getElementById('order-summary');
     if (!summaryEl) return;
     
-    let html = '<ul class="list-group mb-3">';
+    summaryEl.innerHTML = '';
+    
+    const listGroup = document.createElement('ul');
+    listGroup.className = 'list-group mb-3';
+    
     let subtotal = 0;
     
     cart.cart.forEach(item => {
         const itemTotal = item.price * item.quantity;
         subtotal += itemTotal;
-        html += `<li class="list-group-item d-flex justify-content-between">
-            <span>${item.product_name} x ${item.quantity}</span>
-            <span>$${itemTotal.toFixed(2)}</span>
-        </li>`;
+        
+        const listItem = document.createElement('li');
+        listItem.className = 'list-group-item d-flex justify-content-between';
+        
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = `${item.product_name} x ${item.quantity}`;
+        
+        const priceSpan = document.createElement('span');
+        priceSpan.textContent = formatMoney(itemTotal);
+        
+        listItem.appendChild(nameSpan);
+        listItem.appendChild(priceSpan);
+        listGroup.appendChild(listItem);
     });
     
-    html += `</ul><div class="d-flex justify-content-between mb-2">
-        <strong>Subtotal:</strong>
-        <strong>$${subtotal.toFixed(2)}</strong>
-    </div>`;
+    summaryEl.appendChild(listGroup);
+    
+    const subtotalDiv = document.createElement('div');
+    subtotalDiv.className = 'd-flex justify-content-between mb-2';
+    
+    const subtotalLabel = document.createElement('strong');
+    subtotalLabel.textContent = 'Subtotal:';
+    
+    const subtotalValue = document.createElement('strong');
+    subtotalValue.textContent = formatMoney(subtotal);
+    
+    subtotalDiv.appendChild(subtotalLabel);
+    subtotalDiv.appendChild(subtotalValue);
+    summaryEl.appendChild(subtotalDiv);
     
     if (promoCode) {
-        // Calculate discount (would need to fetch promotion details)
-        html += `<div class="text-success mb-2">
-            <small>Código aplicado: ${promoCode}</small>
-        </div>`;
+        const promoDiv = document.createElement('div');
+        promoDiv.className = 'text-success mb-2';
+        
+        const small = document.createElement('small');
+        small.textContent = `Código aplicado: ${promoCode}`;
+        promoDiv.appendChild(small);
+        
+        summaryEl.appendChild(promoDiv);
     }
-    
-    summaryEl.innerHTML = html;
 }
 
-// Order details modal
-document.addEventListener('DOMContentLoaded', function() {
-    const viewOrderBtns = document.querySelectorAll('.view-order-details');
-    viewOrderBtns.forEach(btn => {
-        btn.addEventListener('click', function() {
-            const orderId = this.dataset.orderId;
-            // Fetch order details via API
-            fetch(`/restaurant/public/api/purchase_order/${orderId}`, {
-                headers: {
-                    'Authorization': 'Bearer ' + localStorage.getItem('api_token')
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    renderOrderDetails(data.data);
-                }
-            });
-        });
+/**
+ * Setup order details modal with event delegation
+ */
+function setupOrderDetailsModal() {
+    document.body.addEventListener('click', async (e) => {
+        const btn = e.target.closest('button[data-action="view-order"][data-order-id]');
+        if (!btn) return;
+        
+        const orderId = btn.dataset.orderId;
+        
+        try {
+            const data = await apiCall(`/purchase_order/${orderId}`, 'GET', null, true);
+            
+            if (data.success) {
+                renderOrderDetails(data.data);
+            }
+        } catch (error) {
+            console.error('Error loading order:', error);
+        }
     });
-});
+}
 
+/**
+ * Render order details using DOM
+ */
 function renderOrderDetails(order) {
     const content = document.getElementById('orderDetailsContent');
-    let html = `<p><strong>ID:</strong> #${order.order_id}</p>`;
-    html += `<p><strong>Fecha:</strong> ${order.order_date}</p>`;
-    html += `<p><strong>Total:</strong> $${order.total_amount}</p>`;
-    html += '<h6>Productos:</h6><ul>';
-    order.lines.forEach(line => {
-        html += `<li>${line.product_name} - $${line.price} x ${line.quantity}</li>`;
-    });
-    html += '</ul>';
-    content.innerHTML = html;
+    if (!content) return;
+    
+    content.innerHTML = '';
+    
+    content.appendChild(addRow('ID:', `#${order.order_id}`));
+    content.appendChild(addRow('Fecha:', order.order_date));
+    content.appendChild(addRow('Total:', formatMoney(order.total_amount), {
+        className: 'fw-semibold'
+    }));
+    
+    const productsTitle = document.createElement('h6');
+    productsTitle.className = 'mt-3';
+    productsTitle.textContent = 'Productos:';
+    content.appendChild(productsTitle);
+    
+    const productsList = document.createElement('ul');
+    if (order.lines && order.lines.length > 0) {
+        order.lines.forEach(line => {
+            const li = document.createElement('li');
+            li.textContent = `${line.product_name || 'Producto'} - ${formatMoney(line.price)} x ${line.quantity}`;
+            productsList.appendChild(li);
+        });
+    }
+    content.appendChild(productsList);
     
     const modal = new bootstrap.Modal(document.getElementById('orderDetailsModal'));
     modal.show();
 }
 
-
+// Make cart available globally for backward compatibility
+window.cart = cart;

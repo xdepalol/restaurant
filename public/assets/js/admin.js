@@ -1,205 +1,202 @@
-// Admin Panel JavaScript
-const API_BASE = '/restaurant/public/api';
-let apiToken = '';
+/**
+ * Admin Panel JavaScript
+ * Organized with ES6 modules and DOM helpers
+ */
 
-// Get API token from session
-async function getApiToken() {
-    if (apiToken) {
-        return apiToken;
-    }
-    
-    // Try to get token from session
-    try {
-        const response = await fetch(API_BASE + '/auth/token');
-        const data = await response.json();
-        if (data.success) {
-            setApiToken(data.data.token);
-            return apiToken;
-        }
-    } catch (error) {
-        console.error('Error getting API token:', error);
-    }
-    
-    return '';
-}
-
-function setApiToken(token) {
-    apiToken = token;
-    localStorage.setItem('api_token', token);
-}
+import { apiCall, getApiToken } from './utils/api.js';
+import { 
+    createTable, 
+    createCell, 
+    createHeader, 
+    createActionsCell, 
+    createLoadingSpinner, 
+    createErrorMessage,
+    formatMoney,
+    addRow
+} from './utils/dom-helpers.js';
 
 // Initialize token on load
 document.addEventListener('DOMContentLoaded', async function() {
     await getApiToken();
+    
+    // Load initial data for active tab
+    const activeTab = document.querySelector('.nav-link.active');
+    if (activeTab) {
+        const targetId = activeTab.dataset.bsTarget.replace('#', '');
+        loadEntityData(targetId);
+    }
+    
+    // Tab change event
+    document.querySelectorAll('[data-bs-toggle="tab"]').forEach(tab => {
+        tab.addEventListener('shown.bs.tab', function(e) {
+            const targetId = e.target.dataset.bsTarget.replace('#', '');
+            loadEntityData(targetId);
+        });
+    });
+    
+    // Apply filters for orders
+    document.getElementById('apply-filters')?.addEventListener('click', function() {
+        const filters = {};
+        const clientFilter = document.getElementById('filter-client')?.value;
+        const dateFrom = document.getElementById('filter-date-from')?.value;
+        const dateTo = document.getElementById('filter-date-to')?.value;
+        
+        if (clientFilter) filters.client_id = clientFilter;
+        if (dateFrom) filters.date_from = dateFrom;
+        if (dateTo) filters.date_to = dateTo;
+        
+        loadOrders(filters);
+    });
+
+    // Botones "Nuevo" (delegación simple por id + data-*)
+    document.getElementById('btn-new-user')?.addEventListener('click', () => openUserFormForCreate());
+    document.getElementById('btn-new-promotion')?.addEventListener('click', () => openPromotionFormForCreate());
+    document.getElementById('btn-new-category')?.addEventListener('click', () => openCategoryFormForCreate());
+    document.getElementById('btn-new-product')?.addEventListener('click', () => openProductFormForCreate());
+
+    // Delegación de envío/cancelación de formularios por data-entity/data-action
+    document.body.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-entity][data-action]');
+        if (!btn) return;
+
+        const { entity, action } = btn.dataset;
+
+        switch (entity) {
+            case 'user':
+                if (action === 'cancel-form') hideUserForm();
+                break;
+            case 'promotion':
+                if (action === 'cancel-form') hidePromotionForm();
+                break;
+            case 'category':
+                if (action === 'cancel-form') hideCategoryForm();
+                break;
+            case 'product':
+                if (action === 'cancel-form') hideProductForm();
+                break;
+        }
+    });
+
+    // Submit handlers
+    document.getElementById('user-form')?.addEventListener('submit', handleUserFormSubmit);
+    document.getElementById('promotion-form')?.addEventListener('submit', handlePromotionFormSubmit);
+    document.getElementById('category-form')?.addEventListener('submit', handleCategoryFormSubmit);
+    document.getElementById('product-form')?.addEventListener('submit', handleProductFormSubmit);
 });
 
-// API Helper Functions (always return Promises)
-async function apiCall(endpoint, method = 'GET', data = null) {
-    // Ensure we have a token
-    if (!apiToken) {
-        await getApiToken();
+/**
+ * Load entity data based on tab
+ */
+function loadEntityData(entity) {
+    switch(entity) {
+        case 'users':
+            loadUsers();
+            break;
+        case 'orders':
+            loadOrders();
+            break;
+        case 'promotions':
+            loadPromotions();
+            break;
+        case 'categories':
+            loadCategories();
+            break;
+        case 'products':
+            loadProducts();
+            break;
     }
-
-    const options = {
-        method,
-        headers: {
-            'Content-Type': 'application/json'
-        }
-    };
-
-    if (apiToken) {
-        options.headers.Authorization = 'Bearer ' + apiToken;
-    }
-
-    if (data) {
-        options.body = JSON.stringify(data);
-    }
-
-    const response = await fetch(API_BASE + endpoint, options);
-    const json = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-        const message = json.message || `Error HTTP ${response.status}`;
-        return Promise.reject(new Error(message));
-    }
-
-    return json;
 }
 
-// Generic table elements
-function createCell(content, className = '') {
-    const td = document.createElement('td');
+// ==================== USERS MANAGEMENT ====================
 
-    // Permet text, números o nodes DOM
-    if (content instanceof Node) {
-        td.appendChild(content);
-    } else {
-        td.textContent = content ?? '';
-    }
-
-    if (className) {
-        td.className = className;
-    }
-
-    return td;
-}
-
-// actions: [{ label, className, action }]
-function createActionsCell(actions, entityId) {
-  const td = document.createElement('td');
-
-  actions.forEach(({ label, className, action }) => {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = className;
-    btn.textContent = label;
-
-    // data-* per delegació
-    btn.dataset.action = action;
-    btn.dataset.id = String(entityId);
-
-    td.appendChild(btn);
-  });
-
-  return td;
-}
-
-// Users Management
 async function loadUsers() {
     const container = document.getElementById('users-content');
     if (!container) return;
 
-    container.textContent = 'Cargando usuarios...';
+    container.innerHTML = '';
+    container.appendChild(createLoadingSpinner('Cargando usuarios...'));
 
     try {
         const data = await apiCall('/user/');
         if (data.success) {
             renderUsers(data.data);
         } else {
-            container.textContent = data.message || 'Error al cargar usuarios';
-            container.classList.add('text-danger');
+            container.innerHTML = '';
+            container.appendChild(createErrorMessage(data.message || 'Error al cargar usuarios'));
         }
     } catch (err) {
-        container.textContent = err.message || 'Error al cargar usuarios';
-        container.classList.add('text-danger');
+        container.innerHTML = '';
+        container.appendChild(createErrorMessage(err.message || 'Error al cargar usuarios'));
     }
 }
 
 function renderUsers(users) {
-  const container = document.getElementById('users-content');
-  container.innerHTML = '';
+    const container = document.getElementById('users-content');
+    if (!container) return;
 
-  const table = document.createElement('table');
-  table.className = 'table table-striped';
-  table.id = 'users-table'; // útil per delegació
+    container.innerHTML = '';
 
-  // THEAD
-  const thead = document.createElement('thead');
-  const headerRow = document.createElement('tr');
-  ['ID', 'Nombre', 'Email', 'Rol', 'Acciones'].forEach(text => {
-    const th = document.createElement('th');
-    th.textContent = text;
-    headerRow.appendChild(th);
-  });
-  thead.appendChild(headerRow);
-  table.appendChild(thead);
-
-  // TBODY
-  const tbody = document.createElement('tbody');
-
-  users.forEach(user => {
-    const tr = document.createElement('tr');
-
-    tr.appendChild(createCell(user.user_id));
-    tr.appendChild(createCell(user.name));
-    tr.appendChild(createCell(user.email));
-    tr.appendChild(createCell(user.role, 'text-uppercase'));
-
-    tr.appendChild(
-      createActionsCell(
-        [
-          { label: 'Editar',  className: 'btn btn-sm btn-info me-2', action: 'edit-user' },
-          { label: 'Eliminar', className: 'btn btn-sm btn-danger',   action: 'delete-user' }
-        ],
-        user.user_id
-      )
+    const { table, tbody } = createTable(
+        ['ID', 'Nombre', 'Email', 'Rol', 'Acciones'],
+        'table table-striped',
+        'users-table'
     );
 
-    tbody.appendChild(tr);
-  });
+    users.forEach(user => {
+        const tr = document.createElement('tr');
 
-  table.appendChild(tbody);
-  container.appendChild(table);
+        tr.appendChild(createCell(user.user_id));
+        tr.appendChild(createCell(user.name));
+        tr.appendChild(createCell(user.email));
+        tr.appendChild(createCell(user.role, 'text-uppercase'));
 
-  // Delegació (evita duplicar listeners si tornes a renderitzar)
-  if (!container.dataset.bound) {
-    container.addEventListener('click', (e) => {
-      const btn = e.target.closest('button[data-action][data-id]');
-      if (!btn || !container.contains(btn)) return;
+        tr.appendChild(
+            createActionsCell(
+                [
+                    { label: 'Editar', className: 'btn btn-sm btn-info me-2', action: 'edit-user' },
+                    { label: 'Eliminar', className: 'btn btn-sm btn-danger', action: 'delete-user' }
+                ],
+                user.user_id
+            )
+        );
 
-      const { action, id } = btn.dataset;
-      const userId = Number(id);
-
-      switch (action) {
-        case 'edit-user':
-          editUser(userId);
-          break;
-        case 'delete-user':
-          deleteUser(userId);
-          break;
-      }
+        tbody.appendChild(tr);
     });
 
-    container.dataset.bound = '1';
-  }
+    table.appendChild(tbody);
+    container.appendChild(table);
+
+    // Event delegation
+    if (!container.dataset.bound) {
+        container.addEventListener('click', (e) => {
+            const btn = e.target.closest('button[data-action][data-id]');
+            if (!btn || !container.contains(btn)) return;
+
+            const { action, id } = btn.dataset;
+            const userId = Number(id);
+
+            switch (action) {
+                case 'edit-user':
+                    editUser(userId);
+                    break;
+                case 'delete-user':
+                    deleteUser(userId);
+                    break;
+            }
+        });
+
+        container.dataset.bound = '1';
+    }
 }
 
-// Orders Management
+// ==================== ORDERS MANAGEMENT ====================
+
 async function loadOrders(filters = {}) {
     const container = document.getElementById('orders-content');
     if (!container) return;
 
-    container.textContent = 'Cargando pedidos...';
+    container.innerHTML = '';
+    container.appendChild(createLoadingSpinner('Cargando pedidos...'));
 
     let endpoint = '/purchase_order/';
     if (Object.keys(filters).length > 0) {
@@ -212,12 +209,12 @@ async function loadOrders(filters = {}) {
         if (data.success) {
             renderOrders(data.data);
         } else {
-            container.textContent = data.message || 'Error al cargar pedidos';
-            container.classList.add('text-danger');
+            container.innerHTML = '';
+            container.appendChild(createErrorMessage(data.message || 'Error al cargar pedidos'));
         }
     } catch (err) {
-        container.textContent = err.message || 'Error al cargar pedidos';
-        container.classList.add('text-danger');
+        container.innerHTML = '';
+        container.appendChild(createErrorMessage(err.message || 'Error al cargar pedidos'));
     }
 }
 
@@ -227,28 +224,19 @@ function renderOrders(orders) {
 
     container.innerHTML = '';
 
-    const table = document.createElement('table');
-    table.className = 'table table-striped';
-    table.id = 'orders-table';
+    const { table, tbody } = createTable(
+        ['ID', 'Cliente', 'Fecha', 'Total', 'Acciones'],
+        'table table-striped',
+        'orders-table'
+    );
 
-    const thead = document.createElement('thead');
-    const headerRow = document.createElement('tr');
-    ['ID', 'Cliente', 'Fecha', 'Total', 'Acciones'].forEach(text => {
-        const th = document.createElement('th');
-        th.textContent = text;
-        headerRow.appendChild(th);
-    });
-    thead.appendChild(headerRow);
-    table.appendChild(thead);
-
-    const tbody = document.createElement('tbody');
     orders.forEach(order => {
         const tr = document.createElement('tr');
 
         tr.appendChild(createCell('#' + order.order_id));
         tr.appendChild(createCell(order.client_name));
         tr.appendChild(createCell(order.order_date));
-        tr.appendChild(createCell(order.total_amount.toFixed(2)));
+        tr.appendChild(createCell(formatMoney(order.total_amount)));
 
         tr.appendChild(
             createActionsCell(
@@ -280,24 +268,26 @@ function renderOrders(orders) {
     }
 }
 
-// Promotions Management
+// ==================== PROMOTIONS MANAGEMENT ====================
+
 async function loadPromotions() {
     const container = document.getElementById('promotions-content');
     if (!container) return;
 
-    container.textContent = 'Cargando promociones...';
+    container.innerHTML = '';
+    container.appendChild(createLoadingSpinner('Cargando promociones...'));
 
     try {
         const data = await apiCall('/promotion/?include_inactive=1');
         if (data.success) {
             renderPromotions(data.data);
         } else {
-            container.textContent = data.message || 'Error al cargar promociones';
-            container.classList.add('text-danger');
+            container.innerHTML = '';
+            container.appendChild(createErrorMessage(data.message || 'Error al cargar promociones'));
         }
     } catch (err) {
-        container.textContent = err.message || 'Error al cargar promociones';
-        container.classList.add('text-danger');
+        container.innerHTML = '';
+        container.appendChild(createErrorMessage(err.message || 'Error al cargar promociones'));
     }
 }
 
@@ -307,21 +297,12 @@ function renderPromotions(promotions) {
 
     container.innerHTML = '';
 
-    const table = document.createElement('table');
-    table.className = 'table table-striped';
-    table.id = 'promotions-table';
+    const { table, tbody } = createTable(
+        ['ID', 'Código', 'Descuento', 'Estado', 'Acciones'],
+        'table table-striped',
+        'promotions-table'
+    );
 
-    const thead = document.createElement('thead');
-    const headerRow = document.createElement('tr');
-    ['ID', 'Código', 'Descuento', 'Estado', 'Acciones'].forEach(text => {
-        const th = document.createElement('th');
-        th.textContent = text;
-        headerRow.appendChild(th);
-    });
-    thead.appendChild(headerRow);
-    table.appendChild(thead);
-
-    const tbody = document.createElement('tbody');
     promotions.forEach(promo => {
         const tr = document.createElement('tr');
 
@@ -368,24 +349,26 @@ function renderPromotions(promotions) {
     }
 }
 
-// Categories Management
+// ==================== CATEGORIES MANAGEMENT ====================
+
 async function loadCategories() {
     const container = document.getElementById('categories-content');
     if (!container) return;
 
-    container.textContent = 'Cargando categorías...';
+    container.innerHTML = '';
+    container.appendChild(createLoadingSpinner('Cargando categorías...'));
 
     try {
         const data = await apiCall('/category/?include_inactive=1');
         if (data.success) {
             renderCategories(data.data);
         } else {
-            container.textContent = data.message || 'Error al cargar categorías';
-            container.classList.add('text-danger');
+            container.innerHTML = '';
+            container.appendChild(createErrorMessage(data.message || 'Error al cargar categorías'));
         }
     } catch (err) {
-        container.textContent = err.message || 'Error al cargar categorías';
-        container.classList.add('text-danger');
+        container.innerHTML = '';
+        container.appendChild(createErrorMessage(err.message || 'Error al cargar categorías'));
     }
 }
 
@@ -395,21 +378,12 @@ function renderCategories(categories) {
 
     container.innerHTML = '';
 
-    const table = document.createElement('table');
-    table.className = 'table table-striped';
-    table.id = 'categories-table';
+    const { table, tbody } = createTable(
+        ['ID', 'Nombre', 'Orden', 'Estado', 'Acciones'],
+        'table table-striped',
+        'categories-table'
+    );
 
-    const thead = document.createElement('thead');
-    const headerRow = document.createElement('tr');
-    ['ID', 'Nombre', 'Orden', 'Estado', 'Acciones'].forEach(text => {
-        const th = document.createElement('th');
-        th.textContent = text;
-        headerRow.appendChild(th);
-    });
-    thead.appendChild(headerRow);
-    table.appendChild(thead);
-
-    const tbody = document.createElement('tbody');
     categories.forEach(cat => {
         const tr = document.createElement('tr');
 
@@ -456,24 +430,26 @@ function renderCategories(categories) {
     }
 }
 
-// Products Management
+// ==================== PRODUCTS MANAGEMENT ====================
+
 async function loadProducts() {
     const container = document.getElementById('products-content');
     if (!container) return;
 
-    container.textContent = 'Cargando productos...';
+    container.innerHTML = '';
+    container.appendChild(createLoadingSpinner('Cargando productos...'));
 
     try {
         const data = await apiCall('/product/?include_inactive=1');
         if (data.success) {
             renderProducts(data.data);
         } else {
-            container.textContent = data.message || 'Error al cargar productos';
-            container.classList.add('text-danger');
+            container.innerHTML = '';
+            container.appendChild(createErrorMessage(data.message || 'Error al cargar productos'));
         }
     } catch (err) {
-        container.textContent = err.message || 'Error al cargar productos';
-        container.classList.add('text-danger');
+        container.innerHTML = '';
+        container.appendChild(createErrorMessage(err.message || 'Error al cargar productos'));
     }
 }
 
@@ -483,28 +459,19 @@ function renderProducts(products) {
 
     container.innerHTML = '';
 
-    const table = document.createElement('table');
-    table.className = 'table table-striped';
-    table.id = 'products-table';
+    const { table, tbody } = createTable(
+        ['ID', 'Nombre', 'Categoría', 'Precio', 'Acciones'],
+        'table table-striped',
+        'products-table'
+    );
 
-    const thead = document.createElement('thead');
-    const headerRow = document.createElement('tr');
-    ['ID', 'Nombre', 'Categoría', 'Precio', 'Acciones'].forEach(text => {
-        const th = document.createElement('th');
-        th.textContent = text;
-        headerRow.appendChild(th);
-    });
-    thead.appendChild(headerRow);
-    table.appendChild(thead);
-
-    const tbody = document.createElement('tbody');
     products.forEach(product => {
         const tr = document.createElement('tr');
 
         tr.appendChild(createCell(product.product_id));
         tr.appendChild(createCell(product.nombre));
         tr.appendChild(createCell(product.category_name || ''));
-        tr.appendChild(createCell(product.price.toFixed(2)));
+        tr.appendChild(createCell(formatMoney(product.price)));
 
         tr.appendChild(
             createActionsCell(
@@ -544,106 +511,8 @@ function renderProducts(products) {
     }
 }
 
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
-    // Load initial data for active tab
-    const activeTab = document.querySelector('.nav-link.active');
-    if (activeTab) {
-        const targetId = activeTab.dataset.bsTarget.replace('#', '');
-        switch(targetId) {
-            case 'users':
-                loadUsers();
-                break;
-            case 'orders':
-                loadOrders();
-                break;
-            case 'promotions':
-                loadPromotions();
-                break;
-            case 'categories':
-                loadCategories();
-                break;
-            case 'products':
-                loadProducts();
-                break;
-        }
-    }
-    
-    // Tab change event
-    document.querySelectorAll('[data-bs-toggle="tab"]').forEach(tab => {
-        tab.addEventListener('shown.bs.tab', function(e) {
-            const targetId = e.target.dataset.bsTarget.replace('#', '');
-            switch(targetId) {
-                case 'users':
-                    loadUsers();
-                    break;
-                case 'orders':
-                    loadOrders();
-                    break;
-                case 'promotions':
-                    loadPromotions();
-                    break;
-                case 'categories':
-                    loadCategories();
-                    break;
-                case 'products':
-                    loadProducts();
-                    break;
-            }
-        });
-    });
-    
-    // Apply filters for orders
-    document.getElementById('apply-filters')?.addEventListener('click', function() {
-        const filters = {};
-        const clientFilter = document.getElementById('filter-client').value;
-        const dateFrom = document.getElementById('filter-date-from').value;
-        const dateTo = document.getElementById('filter-date-to').value;
-        
-        if (clientFilter) filters.client_id = clientFilter;
-        if (dateFrom) filters.date_from = dateFrom;
-        if (dateTo) filters.date_to = dateTo;
-        
-        loadOrders(filters);
-    });
+// ==================== CRUD HELPERS - USERS ====================
 
-    // Botones "Nuevo" (delegación simple por id + data-*)
-    document.getElementById('btn-new-user')?.addEventListener('click', () => openUserFormForCreate());
-    document.getElementById('btn-new-promotion')?.addEventListener('click', () => openPromotionFormForCreate());
-    document.getElementById('btn-new-category')?.addEventListener('click', () => openCategoryFormForCreate());
-    document.getElementById('btn-new-product')?.addEventListener('click', () => openProductFormForCreate());
-
-    // Delegación de envío/cancelación de formularios por data-entity/data-action
-    document.body.addEventListener('click', (e) => {
-        const btn = e.target.closest('button[data-entity][data-action]');
-        if (!btn) return;
-
-        const { entity, action } = btn.dataset;
-
-        switch (entity) {
-            case 'user':
-                if (action === 'cancel-form') hideUserForm();
-                break;
-            case 'promotion':
-                if (action === 'cancel-form') hidePromotionForm();
-                break;
-            case 'category':
-                if (action === 'cancel-form') hideCategoryForm();
-                break;
-            case 'product':
-                if (action === 'cancel-form') hideProductForm();
-                break;
-        }
-    });
-
-    // Submit handlers
-    document.getElementById('user-form')?.addEventListener('submit', handleUserFormSubmit);
-    document.getElementById('promotion-form')?.addEventListener('submit', handlePromotionFormSubmit);
-    document.getElementById('category-form')?.addEventListener('submit', handleCategoryFormSubmit);
-    document.getElementById('product-form')?.addEventListener('submit', handleProductFormSubmit);
-});
-
-// CRUD helpers - USERS
 function toggleUserSections(showForm) {
     const list = document.getElementById('users-list');
     const form = document.getElementById('users-form-wrapper');
@@ -744,7 +613,8 @@ async function deleteUser(id) {
     }
 }
 
-// CRUD helpers - PROMOTIONS
+// ==================== CRUD HELPERS - PROMOTIONS ====================
+
 function togglePromotionSections(showForm) {
     const list = document.getElementById('promotions-list');
     const form = document.getElementById('promotions-form-wrapper');
@@ -784,7 +654,6 @@ async function editPromotion(id) {
         document.getElementById('promo_status').value = promo.status || 1;
         document.getElementById('promo_description').value = promo.description || '';
 
-        // starts_at / ends_at -> datetime-local requires "YYYY-MM-DDTHH:MM"
         const starts = document.getElementById('promo_starts_at');
         const ends = document.getElementById('promo_ends_at');
         if (starts) {
@@ -853,7 +722,8 @@ async function deletePromotion(id) {
     }
 }
 
-// CRUD helpers - CATEGORIES
+// ==================== CRUD HELPERS - CATEGORIES ====================
+
 function toggleCategorySections(showForm) {
     const list = document.getElementById('categories-list');
     const form = document.getElementById('categories-form-wrapper');
@@ -945,7 +815,8 @@ async function deleteCategory(id) {
     }
 }
 
-// CRUD helpers - PRODUCTS
+// ==================== CRUD HELPERS - PRODUCTS ====================
+
 function toggleProductSections(showForm) {
     const list = document.getElementById('products-list');
     const form = document.getElementById('products-form-wrapper');
@@ -1041,12 +912,25 @@ async function deleteProduct(id) {
     }
 }
 
-// View order details using Promise-based API + simple alert (could be modal)
+// ==================== VIEW ORDER ====================
+
 async function viewOrder(id) {
     try {
         const data = await apiCall('/purchase_order/' + id);
         if (data.success) {
-            alert('Detalles del pedido:\n' + JSON.stringify(data.data, null, 2));
+            // Could be enhanced with a modal using DOM helpers
+            const order = data.data;
+            let message = `Pedido #${order.order_id}\n`;
+            message += `Cliente: ${order.client_name}\n`;
+            message += `Fecha: ${order.order_date}\n`;
+            message += `Total: ${formatMoney(order.total_amount)}\n\n`;
+            message += 'Productos:\n';
+            if (order.lines) {
+                order.lines.forEach(line => {
+                    message += `- ${line.product_name || 'Producto'}: ${formatMoney(line.price)} x ${line.quantity}\n`;
+                });
+            }
+            alert(message);
         } else {
             alert(data.message || 'No se pudo cargar el pedido');
         }
@@ -1054,4 +938,3 @@ async function viewOrder(id) {
         alert(err.message || 'No se pudo cargar el pedido');
     }
 }
-

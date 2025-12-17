@@ -37,3 +37,4 @@ $token = AuthMiddleware::generateToken([
 Response::success(['token' => $token], 'Token generated successfully');
 
 
+
