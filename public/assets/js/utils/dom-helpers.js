@@ -185,15 +185,26 @@ export function createInput(type, name, value = '', options = {}) {
  * @returns {HTMLDivElement}
  */
 export function createLoadingSpinner(text = 'Cargando...') {
-    const div = document.createElement('div');
-    div.className = 'text-center py-4';
-    div.innerHTML = `
-        <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">${text}</span>
-        </div>
-        <p class="mt-2">${text}</p>
-    `;
-    return div;
+  const wrapper = document.createElement('div');
+  wrapper.className = 'text-center py-4';
+
+  const spinner = document.createElement('div');
+  spinner.className = 'spinner-border text-primary';
+  spinner.setAttribute('role', 'status');
+
+  const srText = document.createElement('span');
+  srText.className = 'visually-hidden';
+  srText.textContent = text;
+
+  spinner.appendChild(srText);
+
+  const p = document.createElement('p');
+  p.className = 'mt-2';
+  p.textContent = text;
+
+  wrapper.append(spinner, p);
+
+  return wrapper;
 }
 
 /**
